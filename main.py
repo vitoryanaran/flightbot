@@ -8,9 +8,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")
-WHATSAPP_URL = os.getenv("WHATSAPP_URL")
-WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
-WHATSAPP_NUMBER = os.getenv("WHATSAPP_NUMBER")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 ORIGENS = ["GRU", "CGH"]
 
@@ -90,7 +89,7 @@ def formatar_mensagem(ofertas):
         return None
 
     msg = "✈️ *FlightBot — Ofertas do dia*\n"
-    msg += f"_Saindo de São Paulo (GRU/CGH)_\n"
+    msg += f"_Saindo de São Paulo \\(GRU/CGH\\)_\n"
     msg += f"_Somente bagagem de mão_\n\n"
 
     for o in ofertas:
@@ -98,32 +97,34 @@ def formatar_mensagem(ofertas):
         duracao_m = o['duracao'] % 60
         msg += f"🟢 *{o['origem']} → {o['destino']}* — R$ {o['preco']:,.0f}\n"
         msg += f"   {o['companhia']} · {duracao_h}h{duracao_m}m\n"
-        msg += f"   📅 Ida: {o['data_ida']} · Volta: {o['data_volta']}\n\n"
+        msg += f"   📅 Ida: {o['data\\_ida']} · Volta: {o['data\\_volta']}\n\n"
 
     msg += "👉 Acesse Google Flights para reservar\n"
     msg += f"_Atualizado às {datetime.now().strftime('%H:%M')} · FlightBot_"
     return msg
 
-def enviar_whatsapp(mensagem):
-    if not WHATSAPP_URL or not mensagem:
-        print("WhatsApp não configurado ainda.")
-        print("\n--- MENSAGEM QUE SERIA ENVIADA ---")
+def enviar_telegram(mensagem):
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        print("Telegram não configurado.")
+        print("\n--- MENSAGEM ---")
         print(mensagem)
-        print("----------------------------------\n")
         return
 
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
-        "number": WHATSAPP_NUMBER,
-        "text": mensagem
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": mensagem,
+        "parse_mode": "MarkdownV2"
     }
-    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}"}
 
     try:
-        response = requests.post(f"{WHATSAPP_URL}/message/sendText/flightbot",
-                                 json=payload, headers=headers)
-        print(f"WhatsApp enviado: {response.status_code}")
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            print("Mensagem enviada no Telegram com sucesso!")
+        else:
+            print(f"Erro Telegram: {response.status_code} - {response.text}")
     except Exception as e:
-        print(f"Erro ao enviar WhatsApp: {e}")
+        print(f"Erro ao enviar Telegram: {e}")
 
 def executar_busca():
     print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M')}] Iniciando busca de voos...")
@@ -143,9 +144,10 @@ def executar_busca():
 
     if melhores:
         mensagem = formatar_mensagem(melhores)
-        enviar_whatsapp(mensagem)
+        enviar_telegram(mensagem)
     else:
         print("Nenhuma oferta abaixo do limite hoje.")
+        enviar_telegram("✈️ *FlightBot* — Nenhuma oferta abaixo do limite hoje\\. Até amanhã\\!")
 
 def main():
     print("FlightBot iniciado!")
