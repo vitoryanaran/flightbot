@@ -38,7 +38,7 @@ payload = {
 
 headers = {
     "Content-Type": "application/json",
-    "X-RapidAPI-Key": "SUA_API_KEY",
+    "X-RapidAPI-Key": "apify_api_UGB6GRP8japAn2DYTFDftwhgwT4sef0HgppP",
     "X-RapidAPI-Host": "google-flights2.p.rapidapi.com"
 }
 
