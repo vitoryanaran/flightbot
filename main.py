@@ -64,7 +64,20 @@ def buscar_voos(origem, destino_codigo, destino_cidade):
 
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=60)
+        
+        # Debug: mostra o que o Apify está retornando
+        print(f"    Status: {response.status_code}")
+        print(f"    Resposta: {response.text[:500]}")
+        
         data = response.json()
+        
+        # Se retornou string ou dict em vez de lista
+        if isinstance(data, str):
+            print(f"    ⚠️ Retornou string: {data}")
+            return []
+        if isinstance(data, dict):
+            print(f"    ⚠️ Retornou dict: {data}")
+            return []
 
         resultados = []
         for voo in data:
@@ -90,6 +103,12 @@ def buscar_voos(origem, destino_codigo, destino_cidade):
                     "data_ida": data_ida,
                     "data_volta": data_volta,
                 })
+
+        return resultados
+
+    except Exception as e:
+        print(f"    ❌ Erro buscando {origem} -> {destino_codigo}: {e}")
+        return []
 
         return resultados
 
