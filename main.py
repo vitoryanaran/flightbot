@@ -1,131 +1,186 @@
-try:
-    response = requests.post(url, json=payload, headers=headers, timeout=60)
+import requests
 
-    # DEBUG
-    print(f"    Status: {response.status_code}")
-    print(f"    Resposta: {response.text[:500]}")
+# =========================================
+# TELEGRAM
+# =========================================
+TOKEN = "SEU_TOKEN_DO_BOT"
+CHAT_ID = "SEU_CHAT_ID"
 
-    data = response.json()
+# =========================================
+# CONFIG
+# =========================================
+DESTINOS_NACIONAIS = [
+    "GRU",
+    "CGH",
+    "GIG",
+    "SDU",
+    "BSB",
+    "SSA",
+]
 
-    # =========================
-    # VALIDAÇÃO DA RESPOSTA
-    # =========================
-    if isinstance(data, str):
-        print(f"    ⚠️ Retornou string: {data}")
-        return []
+PRECO_MAXIMO = {
+    "nacional": 800,
+    "internacional": 3500
+}
 
-    if isinstance(data, dict):
-        print(f"    ⚠️ Retornou dict: {data}")
-        return []
+# =========================================
+# FUNÇÃO PRINCIPAL
+# =========================================
+def buscar_passagens(
+    url,
+    payload,
+    headers,
+    origem,
+    destino_codigo,
+    destino_cidade,
+    data_ida,
+    data_volta
+):
 
-    resultados = []
+    try:
 
-    for voo in data:
+        response = requests.post(
+            url,
+            json=payload,
+            headers=headers,
+            timeout=60
+        )
 
-        # =========================
-        # TRATAMENTO DE PREÇO
-        # =========================
-        preco = voo.get("bestPrice") or voo.get("price", 0)
+        # =========================================
+        # DEBUG
+        # =========================================
+        print(f"Status: {response.status_code}")
+        print(f"Resposta: {response.text[:500]}")
 
-        try:
-            preco = float(
-                str(preco)
-                .replace("R$", "")
-                .replace("$", "")
-                .replace(".", "")
-                .replace(",", ".")
-                .strip()
+        data = response.json()
+
+        # =========================================
+        # VALIDAÇÃO
+        # =========================================
+        if isinstance(data, str):
+            print(f"⚠️ Retornou string: {data}")
+            return []
+
+        if isinstance(data, dict):
+            print(f"⚠️ Retornou dict: {data}")
+            return []
+
+        resultados = []
+
+        # =========================================
+        # LOOP DOS VOOS
+        # =========================================
+        for voo in data:
+
+            # =========================================
+            # PREÇO
+            # =========================================
+            preco = voo.get("bestPrice") or voo.get("price", 0)
+
+            try:
+
+                preco = float(
+                    str(preco)
+                    .replace("R$", "")
+                    .replace("$", "")
+                    .replace(".", "")
+                    .replace(",", ".")
+                    .strip()
+                )
+
+            except:
+                continue
+
+            # =========================================
+            # OUTRAS INFORMAÇÕES
+            # =========================================
+            companhia = (
+                voo.get("airline")
+                or voo.get("airlineName")
+                or voo.get("cheapestSource")
+                or "N/A"
             )
-        except:
-            continue
 
-        # =========================
-        # DADOS DO VOO
-        # =========================
-        companhia = (
-            voo.get("airline")
-            or voo.get("airlineName")
-            or voo.get("cheapestSource")
-            or "N/A"
-        )
+            duracao = voo.get("duration", "N/A")
 
-        duracao = voo.get("duration", "N/A")
+            link = (
+                voo.get("bookingUrl")
+                or voo.get("deepLink")
+                or ""
+            )
 
-        link = (
-            voo.get("bookingUrl")
-            or voo.get("deepLink")
-            or ""
-        )
+            bagagem = (
+                voo.get("baggagePolicy")
+                or voo.get("baggage")
+                or "Somente bagagem de mão"
+            )
 
-        bagagem = (
-            voo.get("baggagePolicy")
-            or voo.get("baggage")
-            or "Somente bagagem de mão"
-        )
+            escalas = (
+                voo.get("stops")
+                or voo.get("scale")
+                or "Direto"
+            )
 
-        escalas = (
-            voo.get("stops")
-            or voo.get("scale")
-            or "Direto"
-        )
+            aeroporto_saida = (
+                voo.get("originAirport")
+                or origem
+            )
 
-        aeroporto_saida = (
-            voo.get("originAirport")
-            or origem
-        )
+            aeroporto_chegada = (
+                voo.get("destinationAirport")
+                or destino_codigo
+            )
 
-        aeroporto_chegada = (
-            voo.get("destinationAirport")
-            or destino_codigo
-        )
+            horario_saida = (
+                voo.get("departureTime")
+                or "N/A"
+            )
 
-        horario_saida = (
-            voo.get("departureTime")
-            or "N/A"
-        )
+            horario_chegada = (
+                voo.get("arrivalTime")
+                or "N/A"
+            )
 
-        horario_chegada = (
-            voo.get("arrivalTime")
-            or "N/A"
-        )
+            # =========================================
+            # LIMITE DE PREÇO
+            # =========================================
+            nacional = destino_codigo in DESTINOS_NACIONAIS
 
-        # =========================
-        # FILTRO DE PREÇO
-        # =========================
-        nacional = destino_codigo in DESTINOS_NACIONAIS
+            limite = (
+                PRECO_MAXIMO["nacional"]
+                if nacional
+                else PRECO_MAXIMO["internacional"]
+            )
 
-        limite = (
-            PRECO_MAXIMO["nacional"]
-            if nacional
-            else PRECO_MAXIMO["internacional"]
-        )
+            # =========================================
+            # FILTRO
+            # =========================================
+            if preco <= limite:
 
-        if preco <= limite:
+                resultado = {
+                    "origem": origem,
+                    "destino": destino_cidade,
+                    "codigo": destino_codigo,
+                    "preco": preco,
+                    "companhia": companhia,
+                    "duracao": duracao,
+                    "link": link,
+                    "bagagem": bagagem,
+                    "escalas": escalas,
+                    "aeroporto_saida": aeroporto_saida,
+                    "aeroporto_chegada": aeroporto_chegada,
+                    "horario_saida": horario_saida,
+                    "horario_chegada": horario_chegada,
+                    "data_ida": data_ida,
+                    "data_volta": data_volta,
+                }
 
-            resultado = {
-                "origem": origem,
-                "destino": destino_cidade,
-                "codigo": destino_codigo,
-                "preco": preco,
-                "companhia": companhia,
-                "duracao": duracao,
-                "link": link,
-                "bagagem": bagagem,
-                "escalas": escalas,
-                "aeroporto_saida": aeroporto_saida,
-                "aeroporto_chegada": aeroporto_chegada,
-                "horario_saida": horario_saida,
-                "horario_chegada": horario_chegada,
-                "data_ida": data_ida,
-                "data_volta": data_volta,
-            }
+                resultados.append(resultado)
 
-            resultados.append(resultado)
-
-            # =========================
-            # MENSAGEM TELEGRAM
-            # =========================
-            mensagem = f"""
+                # =========================================
+                # TELEGRAM
+                # =========================================
+                mensagem = f"""
 <b>✈️ PASSAGEM ENCONTRADA!</b>
 
 <b>🛫 Origem:</b> {resultado['origem']}
@@ -150,29 +205,29 @@ try:
 <a href="{resultado['link']}">🔗 Comprar passagem</a>
 """
 
-            # =========================
-            # ENVIO TELEGRAM
-            # =========================
-            try:
+                try:
 
-                requests.post(
-                    f"https://api.telegram.org/bot{TOKEN}/sendMessage",
-                    json={
-                        "chat_id": CHAT_ID,
-                        "text": mensagem,
-                        "parse_mode": "HTML",
-                        "disable_web_page_preview": True
-                    },
-                    timeout=30
-                )
+                    requests.post(
+                        f"https://api.telegram.org/bot{TOKEN}/sendMessage",
+                        json={
+                            "chat_id": CHAT_ID,
+                            "text": mensagem,
+                            "parse_mode": "HTML",
+                            "disable_web_page_preview": True
+                        },
+                        timeout=30
+                    )
 
-                print(f"    ✅ Telegram enviado: R$ {preco}")
+                    print(f"✅ Telegram enviado: R$ {preco}")
 
-            except Exception as erro_telegram:
-                print(f"    ❌ Erro Telegram: {erro_telegram}")
+                except Exception as erro_telegram:
 
-    return resultados
+                    print(f"❌ Erro Telegram: {erro_telegram}")
 
-except Exception as e:
-    print(f"    ❌ Erro buscando {origem} -> {destino_codigo}: {e}")
-    return []
+        return resultados
+
+    except Exception as e:
+
+        print(f"❌ Erro buscando {origem} -> {destino_codigo}: {e}")
+
+        return []
